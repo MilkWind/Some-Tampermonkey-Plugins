@@ -125,10 +125,7 @@
                     color: gray;
                     border-radius: 12px 12px 0 0;
                 ">
-                    <span id="dashboard-title">粉笔工具箱</span>
-                    <div id="dashboard-header-right" style="display: flex; align-items: center; gap: 10px;">
-                        <span id="drag-hint" style="font-size: 12px; opacity: 0.8;">可拖拽</span>
-                        <button id="collapse-btn" style="
+                    <button id="collapse-btn" style="
                             background: rgba(255,255,255,0.2);
                             border: 1px solid rgba(255,255,255,0.3);
                             color: gray;
@@ -138,6 +135,9 @@
                             font-size: 16px;
                             transition: all 0.3s ease;
                         ">${this.isCollapsed ? '▶' : '▼'}</button>
+                    <span id="dashboard-title">粉笔工具箱</span>
+                    <div id="dashboard-header-right" style="display: flex; align-items: center; gap: 10px;">
+                        <span id="drag-hint" style="font-size: 12px; opacity: 0.8;">可拖拽</span>
                     </div>
                 </div>
                 <div id="dashboard-content" style="padding: 20px; display: ${this.isCollapsed ? 'none' : 'block'};">
@@ -147,7 +147,7 @@
                             margin-bottom: 10px;
                             color: #666;
                             font-weight: 600;
-                        ">正确率统计</div>
+                        ">全站正确率统计</div>
                         <div id="accuracy-display" style="
                             font-size: 32px;
                             font-weight: bold;
@@ -178,19 +178,6 @@
                             transition: all 0.3s ease;
                             box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
                         ">隐藏视频</button>
-                        <button id="refresh-stats-btn" style="
-                            width: 100%;
-                            padding: 10px 20px;
-                            background-color: #f5f5f5;
-                            color: #333;
-                            border: 1px solid #e0e0e0;
-                            border-radius: 8px;
-                            cursor: pointer;
-                            font-size: 12px;
-                            font-weight: bold;
-                            transition: all 0.3s ease;
-                            margin-top: 10px;
-                        ">刷新统计</button>
                     </div>
                 </div>
             `;
@@ -228,7 +215,6 @@
         setupEventListeners() {
             const header = document.getElementById('dashboard-header');
             const toggleBtn = document.getElementById('video-toggle-btn');
-            const refreshBtn = document.getElementById('refresh-stats-btn');
             const collapseBtn = document.getElementById('collapse-btn');
 
             // 拖拽事件
@@ -270,21 +256,6 @@
             toggleBtn.addEventListener('mouseleave', () => {
                 toggleBtn.style.transform = 'scale(1)';
                 toggleBtn.style.backgroundColor = this.isVideoVisible ? '#4CAF50' : '#f44336';
-            });
-
-            // 刷新统计按钮
-            refreshBtn.addEventListener('click', () => {
-                if (!this.dragStarted) {
-                    this.updateStats();
-                }
-            });
-
-            refreshBtn.addEventListener('mouseenter', () => {
-                refreshBtn.style.backgroundColor = '#e8e8e8';
-            });
-
-            refreshBtn.addEventListener('mouseleave', () => {
-                refreshBtn.style.backgroundColor = '#f5f5f5';
             });
         }
 
