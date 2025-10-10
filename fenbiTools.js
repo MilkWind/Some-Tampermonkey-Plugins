@@ -2,7 +2,7 @@
 // @name         粉笔工具箱
 // @namespace    http://tampermonkey.net/
 // @version      2025-10-09
-// @description  提供一个可拖拽的功能仪表盘，包含正确率统计以及切换解析视频元素的显示与隐藏功能
+// @description  提供一个可拖拽的功能仪表盘，包含正确率统计以及更改解析视频元素的位置功能
 // @author       MilkWind
 // @match        https://spa.fenbi.com/ti/exam/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=spa.fenbi.com
@@ -18,7 +18,8 @@
      */
     class Dashboard {
         constructor() {
-            this.isVideoVisible = true;
+            this.isVideoInOriginalPosition = true;
+            this.videoOriginalPositions = new Map(); // 存储视频元素的原始位置
             this.isDragging = false;
             this.dragStarted = false;
             this.currentX = 0;
@@ -147,7 +148,7 @@
                             margin-bottom: 10px;
                             color: #666;
                             font-weight: 600;
-                        ">全站正确率统计</div>
+                        ">全站平均正确率</div>
                         <div id="accuracy-display" style="
                             font-size: 32px;
                             font-weight: bold;
@@ -177,7 +178,7 @@
                             font-weight: bold;
                             transition: all 0.3s ease;
                             box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-                        ">隐藏视频</button>
+                        ">视频移至解析后</button>
                     </div>
                 </div>
             `;
@@ -249,13 +250,13 @@
             toggleBtn.addEventListener('mouseenter', () => {
                 if (!this.isDragging) {
                     toggleBtn.style.transform = 'scale(1.05)';
-                    toggleBtn.style.backgroundColor = this.isVideoVisible ? '#45a049' : '#da190b';
+                    toggleBtn.style.backgroundColor = this.isVideoInOriginalPosition ? '#45a049' : '#da190b';
                 }
             });
 
             toggleBtn.addEventListener('mouseleave', () => {
                 toggleBtn.style.transform = 'scale(1)';
-                toggleBtn.style.backgroundColor = this.isVideoVisible ? '#4CAF50' : '#f44336';
+                toggleBtn.style.backgroundColor = this.isVideoInOriginalPosition ? '#4CAF50' : '#f44336';
             });
         }
 
@@ -367,7 +368,41 @@
         }
 
         /**
-         * 切换视频显示/隐藏
+         * 获取对应的解析元素
+         */
+        getSolutionElement(videoElement) {
+            // 尝试在父元素的兄弟节点中查找解析元素
+            let parent = videoElement.parentElement;
+            if (!parent) return null;
+            
+            // 在同级元素中查找
+            let sibling = parent.nextElementSibling;
+            while (sibling) {
+                if (sibling.id && sibling.id.includes('section-solution')) {
+                    return sibling;
+                }
+                // 也在子元素中查找
+                const solutionInChild = sibling.querySelector('[id*="section-solution"]');
+                if (solutionInChild) {
+                    return solutionInChild;
+                }
+                sibling = sibling.nextElementSibling;
+            }
+            
+            // 如果没找到，尝试在整个文档中查找最近的解析元素
+            const allSolutions = document.querySelectorAll('[id*="section-solution"]');
+            for (let solution of allSolutions) {
+                // 检查解析元素是否在视频元素之后
+                if (videoElement.compareDocumentPosition(solution) & Node.DOCUMENT_POSITION_FOLLOWING) {
+                    return solution;
+                }
+            }
+            
+            return null;
+        }
+
+        /**
+         * 切换视频位置
          */
         toggleVideos() {
             const videoElements = this.getVideoElements();
@@ -378,18 +413,55 @@
                 return;
             }
 
-            this.isVideoVisible = !this.isVideoVisible;
+            this.isVideoInOriginalPosition = !this.isVideoInOriginalPosition;
 
-            videoElements.forEach(element => {
-                element.style.display = this.isVideoVisible ? '' : 'none';
-            });
-
-            // 更新按钮文本和样式
-            if (this.isVideoVisible) {
-                button.innerHTML = '隐藏视频';
+            if (this.isVideoInOriginalPosition) {
+                // 恢复到原始位置
+                videoElements.forEach(videoElement => {
+                    const originalPosition = this.videoOriginalPositions.get(videoElement);
+                    if (originalPosition) {
+                        const { parent, nextSibling } = originalPosition;
+                        if (parent) {
+                            if (nextSibling) {
+                                parent.insertBefore(videoElement, nextSibling);
+                            } else {
+                                parent.appendChild(videoElement);
+                            }
+                        }
+                    }
+                });
+                
+                // 清空存储的位置信息
+                this.videoOriginalPositions.clear();
+                
+                button.innerHTML = '视频移至解析后';
                 button.style.backgroundColor = '#4CAF50';
             } else {
-                button.innerHTML = '显示视频';
+                // 移动到解析元素之后
+                let movedCount = 0;
+                videoElements.forEach(videoElement => {
+                    // 保存原始位置
+                    const originalParent = videoElement.parentElement;
+                    const originalNextSibling = videoElement.nextElementSibling;
+                    this.videoOriginalPositions.set(videoElement, {
+                        parent: originalParent,
+                        nextSibling: originalNextSibling
+                    });
+                    
+                    // 查找对应的解析元素
+                    const solutionElement = this.getSolutionElement(videoElement);
+                    if (solutionElement) {
+                        // 将视频元素移动到解析元素之后
+                        if (solutionElement.nextElementSibling) {
+                            solutionElement.parentElement.insertBefore(videoElement, solutionElement.nextElementSibling);
+                        } else {
+                            solutionElement.parentElement.appendChild(videoElement);
+                        }
+                        movedCount++;
+                    }
+                });
+                
+                button.innerHTML = '恢复视频位置';
                 button.style.backgroundColor = '#f44336';
             }
         }
