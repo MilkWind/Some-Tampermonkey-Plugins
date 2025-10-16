@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         粉笔工具箱
 // @namespace    http://tampermonkey.net/
-// @version      2025-10-09
-// @description  提供一个可拖拽的功能仪表盘，包含正确率统计以及更改解析视频元素的位置功能
+// @version      2025-10-16
+// @description  提供一个可拖拽的功能仪表盘，包含正确率统计、更改解析视频元素的位置以及自动展开折叠容器的功能
 // @author       MilkWind
 // @match        https://spa.fenbi.com/ti/exam/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=spa.fenbi.com
 // @grant        none
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
     /**
@@ -31,6 +31,7 @@
             this.dashboard = null;
             this.statsInterval = null;
             this.isCollapsed = false;
+            this.isAutoExpandEnabled = true; // 默认启用自动展开
         }
 
         /**
@@ -68,16 +69,33 @@
         }
 
         /**
+         * 从localStorage加载自动展开状态
+         */
+        loadAutoExpandState() {
+            const savedState = localStorage.getItem('dashboard-auto-expand');
+            // 默认为true，如果未设置或设置为'true'
+            return savedState === null || savedState === 'true';
+        }
+
+        /**
+         * 保存自动展开状态到localStorage
+         */
+        saveAutoExpandState(isEnabled) {
+            localStorage.setItem('dashboard-auto-expand', isEnabled.toString());
+        }
+
+        /**
          * 创建仪表盘UI
          */
         createDashboard() {
             const dashboard = document.createElement('div');
             dashboard.id = 'fenbi-dashboard';
-            
+
             // 加载保存的位置和折叠状态
             const savedPosition = this.loadPosition();
             this.isCollapsed = this.loadCollapsedState();
-            
+            this.isAutoExpandEnabled = this.loadAutoExpandState();
+
             // 设置初始偏移量
             if (savedPosition.left !== 'auto') {
                 this.xOffset = parseInt(savedPosition.left);
@@ -86,7 +104,7 @@
                 this.xOffset = window.innerWidth - parseInt(savedPosition.right) - 280;
                 this.currentX = this.xOffset;
             }
-            
+
             if (savedPosition.top !== 'auto') {
                 this.yOffset = parseInt(savedPosition.top);
                 this.currentY = this.yOffset;
@@ -94,7 +112,7 @@
                 this.yOffset = window.innerHeight - parseInt(savedPosition.bottom) - 200;
                 this.currentY = this.yOffset;
             }
-            
+
             dashboard.style.cssText = `
                 position: fixed;
                 top: ${savedPosition.top};
@@ -178,7 +196,21 @@
                             font-weight: bold;
                             transition: all 0.3s ease;
                             box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+                            margin-bottom: 10px;
                         ">视频移至解析后</button>
+                        <button id="expand-toggle-btn" style="
+                            width: 100%;
+                            padding: 12px 20px;
+                            background-color: ${this.isAutoExpandEnabled ? '#9E9E9E' : '#2196F3'};
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            font-weight: bold;
+                            transition: all 0.3s ease;
+                            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+                        ">${this.isAutoExpandEnabled ? '禁用自动展开解析' : '启用自动展开解析'}</button>
                     </div>
                 </div>
             `;
@@ -192,7 +224,7 @@
                 const dragHint = document.getElementById('drag-hint');
                 const header = document.getElementById('dashboard-header');
                 const collapseBtn = document.getElementById('collapse-btn');
-                
+
                 title.style.display = 'none';
                 dragHint.style.display = 'none';
                 header.style.borderBottom = 'none';
@@ -206,7 +238,7 @@
 
             this.setupEventListeners();
             this.startStatsUpdater();
-            
+
             return dashboard;
         }
 
@@ -217,6 +249,7 @@
             const header = document.getElementById('dashboard-header');
             const toggleBtn = document.getElementById('video-toggle-btn');
             const collapseBtn = document.getElementById('collapse-btn');
+            const expandToggleBtn = document.getElementById('expand-toggle-btn');
 
             // 拖拽事件
             header.addEventListener('mousedown', (e) => this.dragStart(e));
@@ -250,13 +283,29 @@
             toggleBtn.addEventListener('mouseenter', () => {
                 if (!this.isDragging) {
                     toggleBtn.style.transform = 'scale(1.05)';
-                    toggleBtn.style.backgroundColor = this.isVideoInOriginalPosition ? '#45a049' : '#da190b';
                 }
             });
 
             toggleBtn.addEventListener('mouseleave', () => {
                 toggleBtn.style.transform = 'scale(1)';
-                toggleBtn.style.backgroundColor = this.isVideoInOriginalPosition ? '#4CAF50' : '#f44336';
+            });
+
+            // 自动展开切换按钮
+            expandToggleBtn.addEventListener('click', () => {
+                if (!this.dragStarted) {
+                    this.toggleAutoExpand();
+                }
+            });
+
+            // 自动展开按钮悬停效果
+            expandToggleBtn.addEventListener('mouseenter', () => {
+                if (!this.isDragging) {
+                    expandToggleBtn.style.transform = 'scale(1.05)';
+                }
+            });
+
+            expandToggleBtn.addEventListener('mouseleave', () => {
+                expandToggleBtn.style.transform = 'scale(1)';
             });
         }
 
@@ -278,7 +327,7 @@
         drag(e) {
             if (this.isDragging) {
                 e.preventDefault();
-                
+
                 this.currentX = e.clientX - this.initialX;
                 this.currentY = e.clientY - this.initialY;
 
@@ -309,7 +358,7 @@
                 this.initialY = this.currentY;
 
                 this.isDragging = false;
-                
+
                 // 延迟重置dragStarted，避免触发click事件
                 setTimeout(() => {
                     this.dragStarted = false;
@@ -327,7 +376,7 @@
             const title = document.getElementById('dashboard-title');
             const dragHint = document.getElementById('drag-hint');
             const header = document.getElementById('dashboard-header');
-            
+
             if (this.isCollapsed) {
                 // 折叠状态：只显示一个小方块
                 content.style.display = 'none';
@@ -355,8 +404,47 @@
                 this.dashboard.style.minWidth = '280px';
                 this.dashboard.style.width = '';
             }
-            
+
             this.saveCollapsedState(this.isCollapsed);
+        }
+
+        /**
+         * 自动展开折叠的容器元素
+         */
+        expandCollapsedContainers() {
+            if (!this.isAutoExpandEnabled) {
+                return;
+            }
+
+            const containers = document.querySelectorAll('.ng-trigger.ng-trigger-collapseMotion.result-common-container-toggle');
+
+            if (containers.length > 0) {
+                containers.forEach(container => {
+                    container.style.height = 'auto';
+                    container.style.overflow = 'visible';
+                });
+                // console.log(`[粉笔工具箱] 已展开 ${containers.length} 个折叠容器`);
+            }
+        }
+
+        /**
+         * 切换自动展开功能
+         */
+        toggleAutoExpand() {
+            this.isAutoExpandEnabled = !this.isAutoExpandEnabled;
+            const button = document.getElementById('expand-toggle-btn');
+
+            if (this.isAutoExpandEnabled) {
+                button.innerHTML = '禁用自动展开解析';
+                button.style.backgroundColor = '#9E9E9E';
+                // 立即执行一次展开
+                this.expandCollapsedContainers();
+            } else {
+                button.innerHTML = '启用自动展开解析';
+                button.style.backgroundColor = '#2196F3';
+            }
+
+            this.saveAutoExpandState(this.isAutoExpandEnabled);
         }
 
         /**
@@ -374,7 +462,7 @@
             // 尝试在父元素的兄弟节点中查找解析元素
             let parent = videoElement.parentElement;
             if (!parent) return null;
-            
+
             // 在同级元素中查找
             let sibling = parent.nextElementSibling;
             while (sibling) {
@@ -388,7 +476,7 @@
                 }
                 sibling = sibling.nextElementSibling;
             }
-            
+
             // 如果没找到，尝试在整个文档中查找最近的解析元素
             const allSolutions = document.querySelectorAll('[id*="section-solution"]');
             for (let solution of allSolutions) {
@@ -397,7 +485,7 @@
                     return solution;
                 }
             }
-            
+
             return null;
         }
 
@@ -430,10 +518,10 @@
                         }
                     }
                 });
-                
+
                 // 清空存储的位置信息
                 this.videoOriginalPositions.clear();
-                
+
                 button.innerHTML = '视频移至解析后';
                 button.style.backgroundColor = '#4CAF50';
             } else {
@@ -447,7 +535,7 @@
                         parent: originalParent,
                         nextSibling: originalNextSibling
                     });
-                    
+
                     // 查找对应的解析元素
                     const solutionElement = this.getSolutionElement(videoElement);
                     if (solutionElement) {
@@ -460,7 +548,7 @@
                         movedCount++;
                     }
                 });
-                
+
                 button.innerHTML = '恢复视频位置';
                 button.style.backgroundColor = '#f44336';
             }
@@ -471,7 +559,7 @@
          */
         getAccuracyData() {
             const correctRateElements = document.querySelectorAll('.overall-item-value.correct-rate');
-            
+
             if (correctRateElements.length === 0) {
                 // console.log('[粉笔工具箱] 未找到正确率元素');
                 return null;
@@ -488,12 +576,12 @@
                         text += node.textContent;
                     }
                 }
-                
+
                 // 也尝试从完整文本中提取，以兼容不同的HTML结构
                 if (!text.trim()) {
                     text = element.textContent;
                 }
-                
+
                 // 提取数字（可能包含小数点）
                 const match = text.match(/(\d+\.?\d*)/);
                 if (match) {
@@ -518,9 +606,9 @@
                 min: Math.min(...rates).toFixed(1),
                 max: Math.max(...rates).toFixed(1)
             };
-            
+
             // console.log(`[粉笔工具箱] 统计结果: 平均 ${result.average}%, 最高 ${result.max}%, 最低 ${result.min}%`);
-            
+
             return result;
         }
 
@@ -530,12 +618,12 @@
         updateStats() {
             const accuracyDisplay = document.getElementById('accuracy-display');
             const statsDetails = document.getElementById('stats-details');
-            
+
             const data = this.getAccuracyData();
-            
+
             if (data) {
                 accuracyDisplay.textContent = `${data.average}%`;
-                
+
                 // 显示详细统计信息
                 const detailsHtml = `
                     <div>共 ${data.count} 个题目</div>
@@ -544,7 +632,7 @@
                     </div>
                 `;
                 statsDetails.innerHTML = detailsHtml;
-                
+
                 // 根据正确率设置颜色
                 const rate = parseFloat(data.average);
                 if (rate >= 80) {
@@ -566,11 +654,15 @@
          */
         startStatsUpdater() {
             // 首次更新
-            setTimeout(() => this.updateStats(), 1000);
-            
+            setTimeout(() => {
+                this.updateStats();
+                this.expandCollapsedContainers();
+            }, 1000);
+
             // 每5秒更新一次
             this.statsInterval = setInterval(() => {
                 this.updateStats();
+                this.expandCollapsedContainers();
             }, 5000);
         }
 
@@ -609,11 +701,15 @@
                     this.createDashboard();
                     // 自动启用视频位置更改功能
                     setTimeout(() => this.toggleVideos(), 1500);
+                    // 自动展开折叠容器
+                    setTimeout(() => this.expandCollapsedContainers(), 500);
                 });
             } else {
                 this.createDashboard();
                 // 自动启用视频位置更改功能
                 setTimeout(() => this.toggleVideos(), 1500);
+                // 自动展开折叠容器
+                setTimeout(() => this.expandCollapsedContainers(), 500);
             }
 
             // 使用MutationObserver监听DOM变化
