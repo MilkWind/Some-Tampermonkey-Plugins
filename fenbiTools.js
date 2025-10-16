@@ -605,9 +605,15 @@
          */
         init() {
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => this.createDashboard());
+                document.addEventListener('DOMContentLoaded', () => {
+                    this.createDashboard();
+                    // 自动启用视频位置更改功能
+                    setTimeout(() => this.toggleVideos(), 1500);
+                });
             } else {
                 this.createDashboard();
+                // 自动启用视频位置更改功能
+                setTimeout(() => this.toggleVideos(), 1500);
             }
 
             // 使用MutationObserver监听DOM变化
