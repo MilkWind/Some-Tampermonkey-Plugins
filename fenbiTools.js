@@ -497,7 +497,6 @@
             const button = document.getElementById('video-toggle-btn');
 
             if (videoElements.length === 0) {
-                this.showNotification('未找到包含"section-video"的视频元素');
                 return;
             }
 
