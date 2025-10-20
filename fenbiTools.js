@@ -30,6 +30,7 @@
             this.yOffset = 0;
             this.dashboard = null;
             this.statsInterval = null;
+            this.videoToggleInterval = null;
             this.isCollapsed = false;
             this.isAutoExpandEnabled = true; // 默认启用自动展开
         }
@@ -491,13 +492,14 @@
 
         /**
          * 切换视频位置
+         * @returns {boolean} 是否成功切换
          */
         toggleVideos() {
             const videoElements = this.getVideoElements();
             const button = document.getElementById('video-toggle-btn');
 
             if (videoElements.length === 0) {
-                return;
+                return false;
             }
 
             this.isVideoInOriginalPosition = !this.isVideoInOriginalPosition;
@@ -551,6 +553,8 @@
                 button.innerHTML = '恢复视频位置';
                 button.style.backgroundColor = '#f44336';
             }
+
+            return true;
         }
 
         /**
@@ -692,21 +696,54 @@
         }
 
         /**
+         * 启动视频切换尝试器
+         */
+        startVideoToggler() {
+            // 首次尝试延迟1秒
+            setTimeout(() => {
+                const success = this.toggleVideos();
+                if (success) {
+                    // console.log('[粉笔工具箱] 视频位置切换成功');
+                    return;
+                }
+
+                // 如果首次失败，每秒尝试一次
+                this.videoToggleInterval = setInterval(() => {
+                    const success = this.toggleVideos();
+                    if (success) {
+                        // console.log('[粉笔工具箱] 视频位置切换成功');
+                        clearInterval(this.videoToggleInterval);
+                        this.videoToggleInterval = null;
+                    }
+                }, 1000);
+
+                // 30秒后停止尝试
+                setTimeout(() => {
+                    if (this.videoToggleInterval) {
+                        clearInterval(this.videoToggleInterval);
+                        this.videoToggleInterval = null;
+                        // console.log('[粉笔工具箱] 视频切换尝试超时');
+                    }
+                }, 30000);
+            }, 1000);
+        }
+
+        /**
          * 初始化
          */
         init() {
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', () => {
                     this.createDashboard();
-                    // 自动启用视频位置更改功能
-                    setTimeout(() => this.toggleVideos(), 1500);
+                    // 使用 setInterval 自动启用视频位置更改功能
+                    this.startVideoToggler();
                     // 自动展开折叠容器
                     setTimeout(() => this.expandCollapsedContainers(), 500);
                 });
             } else {
                 this.createDashboard();
-                // 自动启用视频位置更改功能
-                setTimeout(() => this.toggleVideos(), 1500);
+                // 使用 setInterval 自动启用视频位置更改功能
+                this.startVideoToggler();
                 // 自动展开折叠容器
                 setTimeout(() => this.expandCollapsedContainers(), 500);
             }
