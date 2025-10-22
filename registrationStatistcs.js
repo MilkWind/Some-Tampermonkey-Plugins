@@ -81,6 +81,9 @@
         const rows = document.querySelectorAll('tr.list_one');
         const data = [];
 
+        // 去掉表头
+        rows.shift();
+
         rows.forEach(row => {
             const cells = row.querySelectorAll('td');
             const rowData = {
