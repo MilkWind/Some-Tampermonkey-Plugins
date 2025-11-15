@@ -201,6 +201,6 @@
         console.log('✅ 已启用右键菜单功能');
     }
 
-    // 立即启动 - Start immediately
-    init();
+    // 稍后启动
+    setTimeout(init, 2000);
 })();

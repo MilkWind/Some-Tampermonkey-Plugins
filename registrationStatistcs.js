@@ -81,10 +81,9 @@
         const rows = document.querySelectorAll('tr.list_one');
         const data = [];
 
-        // 去掉表头
-        rows.shift();
-
-        rows.forEach(row => {
+        // 去掉表头 - 从第二个元素开始遍历
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
             const cells = row.querySelectorAll('td');
             const rowData = {
                 positionCode: '',
@@ -114,7 +113,7 @@
             if (rowData.positionCode) {
                 data.push(rowData);
             }
-        });
+        }
 
         return data;
     }
@@ -127,7 +126,7 @@
 
         // CSV头部
         const header = '岗位代码,招考职位,招考人数,报名人数';
-        
+
         // CSV数据行
         const rows = data.map(item => {
             // 处理包含逗号、引号或换行符的字段
@@ -214,15 +213,7 @@
                 copyBtn.style.opacity = '1';
                 copyBtn.style.cursor = 'pointer';
 
-                // 监听DOM变化，自动更新统计
-                observer = new MutationObserver(() => {
-                    updateDashboard();
-                });
-
-                observer.observe(document.body, {
-                    childList: true,
-                    subtree: true
-                });
+                startBtn.textContent = '统计完毕';
             }
         });
 
