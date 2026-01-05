@@ -75,12 +75,6 @@
                 if (node.classList && node.classList.contains('chrome70-container')) {
                     pendingContainers.add(node);
                 }
-                
-                // 检查节点内部是否有容器
-                const containers = node.querySelectorAll && node.querySelectorAll('.chrome70-container');
-                if (containers) {
-                    containers.forEach(container => pendingContainers.add(container));
-                }
             });
         });
 
