@@ -20,22 +20,20 @@
         如果检测到有新的元素，则立即应用。
         */
         const containers = document.querySelectorAll('.chrome70-container');
-        let isInputSetted = false; // 是否已经设置过输入框的最大宽度限制
         containers.forEach(container => {
             container.style.cssText = `
                 --center-content-max-width: auto !important;
                 padding: 0 1rem;
             `;
 
-            // 如果还没有设置过输入框的最大宽度限制，则设置它
-            if (!isInputSetted) {
-                const input = container.querySelector('[class^="inner"]');
-                if (input) {
+            const inputs = container.querySelectorAll('[class^="inner"]');
+            if (inputs.length > 0) {
+                inputs.forEach(input => {
                     input.style.cssText = `
                         max-width: auto;
+                        --content-max-width: auto !important;
                     `;
-                    isInputSetted = true;
-                }
+                });
             }
         });
     });
