@@ -11,7 +11,11 @@
 
 (function () {
     'use strict';
-    // 持续检测第一个直接子元素包含data-target-id="message-box-target-id"属性的所有.chrome70-container元素，将其内联样式：--center-content-max-width改为auto，如果检测到有新的元素，则立即应用
+    /*
+    持续检测第一个直接子元素包含data-target-id="message-box-target-id"属性的所有.chrome70-container元素，
+    将它们的内联样式：--center-content-max-width改为auto，padding: 0 1rem，
+    如果检测到有新的元素，则立即应用。
+    */
     const observer = new MutationObserver(() => {
         const containers = document.querySelectorAll('.chrome70-container');
         containers.forEach(container => {
