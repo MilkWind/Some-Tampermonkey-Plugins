@@ -2,7 +2,7 @@
 // @name         网页限制解除
 // @namespace    http://tampermonkey.net/
 // @version      2025-07-10
-// @description  删除 "不可选取"、"禁止快捷键打开F12"、"禁止右键菜单" 功能
+// @description  删除 "不可选取"、"禁止快捷键打开F12"、"禁止右键菜单"、"禁止复制" 功能
 // @author       MilkWind
 // @match        *://*/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=mianshiya.com
@@ -149,7 +149,88 @@
         }, true);
     }
 
-    // 删除所有常见的反调试和限制代码 - Remove common anti-debugging code
+    // 4. 删除禁止复制限制 - Remove copy blocking restrictions
+    function enableCopying() {
+        // Remove copy blocking event handlers
+        document.oncopy = null;
+        document.oncut = null;
+        document.onbeforecopy = null;
+        document.onbeforecut = null;
+
+        // Override addEventListener to prevent copy blocking
+        const originalAddEventListener = EventTarget.prototype.addEventListener;
+        EventTarget.prototype.addEventListener = function(type, listener, options) {
+            if ((type === 'copy' || type === 'beforecopy' || type === 'cut' || type === 'beforecut') 
+                && listener.toString().includes('preventDefault')) {
+                // Skip listeners that block copy/cut events
+                return;
+            }
+            if (type === 'keydown' && listener.toString().includes('copy')) {
+                // Skip listeners that block copy shortcuts
+                return;
+            }
+            return originalAddEventListener.call(this, type, listener, options);
+        };
+
+        // Enable copy events by allowing them
+        document.addEventListener('copy', function(e) {
+            e.stopImmediatePropagation();
+            return true;
+        }, true);
+
+        document.addEventListener('cut', function(e) {
+            e.stopImmediatePropagation();
+            return true;
+        }, true);
+
+        document.addEventListener('beforecopy', function(e) {
+            e.stopImmediatePropagation();
+            return true;
+        }, true);
+
+        document.addEventListener('beforecut', function(e) {
+            e.stopImmediatePropagation();
+            return true;
+        }, true);
+
+        // Allow Ctrl+C / Cmd+C shortcuts
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                e.stopImmediatePropagation();
+                return true;
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'x') {
+                e.stopImmediatePropagation();
+                return true;
+            }
+        }, true);
+
+        // Remove copy blocking from all elements
+        function removeCopyBlocking() {
+            const allElements = document.querySelectorAll('*');
+            allElements.forEach(element => {
+                element.oncopy = null;
+                element.oncut = null;
+                element.onbeforecopy = null;
+                element.onbeforecut = null;
+                element.removeAttribute('oncopy');
+                element.removeAttribute('oncut');
+                element.removeAttribute('onbeforecopy');
+                element.removeAttribute('onbeforecut');
+            });
+        }
+
+        removeCopyBlocking();
+
+        // Continue to remove blocking as new content loads
+        const observer = new MutationObserver(removeCopyBlocking);
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    // 5. 删除所有常见的反调试和限制代码 - Remove common anti-debugging code
     function removeAntiDebugging() {
         // Clear common anti-debugging intervals
         const originalSetInterval = window.setInterval;
@@ -185,6 +266,7 @@
         enableTextSelection();
         enableDevTools();
         enableContextMenu();
+        enableCopying();
         removeAntiDebugging();
         
         // Also apply when DOM is fully loaded
@@ -192,6 +274,7 @@
             document.addEventListener('DOMContentLoaded', function() {
                 enableTextSelection();
                 enableContextMenu();
+                enableCopying();
             });
         }
         
@@ -199,6 +282,7 @@
         console.log('✅ 已启用文本选择功能');
         console.log('✅ 已启用开发者工具快捷键');
         console.log('✅ 已启用右键菜单功能');
+        console.log('✅ 已启用复制功能');
     }
 
     // 稍后启动
